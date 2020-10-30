@@ -1,22 +1,32 @@
 import express from 'express';
 import _ from 'lodash';
-import { setupDb } from './db/db.js';
+import { db, setupDb } from './db/db.js';
 import {
   selectAllMetadata,
   selectColumnsOfTable,
   selectTables,
 } from './db/queries.js';
+import {
+  filterForPrimaryKey,
+  filterOutPrimaryKeyColumns,
+  getIdFromParams,
+} from './helpers.js';
+import {
+  handleGet,
+  handleGetWithId,
+  handlePost,
+  handlePut,
+  handleDelete,
+} from './routerHandlers.js';
 
 const router = express.Router();
-let db = null;
 
 router.get('/test', (req, res) => {
   res.send({ hello: 'world' });
 });
 
 export const initialize = async options => {
-  console.log(options);
-  db = setupDb(options.pgOptions);
+  setupDb(options.pgOptions);
   const metadata = (await db.query(selectAllMetadata)).rows;
   const tableNames = [...new Set(metadata.map(x => x.table_name))];
 
@@ -34,85 +44,34 @@ export const initialize = async options => {
     });
 
     const table = {
-      tableName: _.camelCase(tableName),
+      tableName: tableName,
+      camelTableName: _.camelCase(tableName),
       columns,
     };
     return table;
   });
 
-  console.log(tables[0].columns[0]);
-
   tables.forEach(table => {
-    router.get(`/api/${table.tableName}/`, (req, res, next) =>
+    router.get(`/api/${table.camelTableName}/`, (req, res, next) =>
       handleGet(req, res, next, table),
     );
 
-    router.get(`/api/${table.tableName}/:id`, (req, res, next) => {
+    router.get(`/api/${table.camelTableName}/:id`, (req, res, next) => {
       handleGetWithId(req, res, next, table);
     });
 
-    router.post(`/api/${table.tableName}/`, (req, res, next) =>
+    router.post(`/api/${table.camelTableName}/`, (req, res, next) =>
       handlePost(req, res, next, table),
     );
 
-    router.put(`/api/${table.tableName}`, (req, res, next) => {
-      return res.send(req.body);
+    router.put(`/api/${table.camelTableName}`, (req, res, next) => {
+      handlePut(req, res, next, table);
     });
 
-    router.delete(`/api/${table.tableName}/:id`, (req, res, next) => {
-      const id = parseInt(req.params.id);
-      return res.send({ id });
+    router.delete(`/api/${table.camelTableName}/:id`, (req, res, next) => {
+      handleDelete(req, res, next, table);
     });
   });
 
-  // console.log(tableNames);
   return router;
-};
-
-const handleGet = async (req, res, next, table) => {
-  try {
-    const snakeCaseTable = _.snakeCase(table.tableName);
-    const sql = `Select * from ${snakeCaseTable}`;
-    const dbResult = await db.query(sql);
-
-    const result = dbResult.rows;
-
-    res.send(result);
-  } catch (err) {
-    console.error(err);
-    next(err);
-  }
-};
-
-const handleGetWithId = async (req, res, next, table) => {
-  const id = parseInt(req.params.id);
-  return res.send({ id });
-};
-
-const handlePost = async (req, res, next, table) => {
-  try {
-    console.log(table);
-    const snakeCaseTable = _.snakeCase(table.tableName);
-    const columnsWithoutPrimaryKey = table.columns.filter(
-      x => x.isPrimaryKey === false,
-    );
-    console.log(columnsWithoutPrimaryKey);
-    const sql = `Insert Into ${snakeCaseTable}(${columnsWithoutPrimaryKey.map(
-      x => x.columnName,
-    )}) values (${columnsWithoutPrimaryKey.map(
-      (x, i) => `\$${i + 1}`,
-    )}) returning *`;
-
-    console.log(sql);
-
-    const dbResult = await db.query(sql, [
-      ...columnsWithoutPrimaryKey.map(x => req.body[x.columnName]),
-    ]);
-    const result = dbResult.rows;
-
-    res.send(result);
-  } catch (err) {
-    console.error(err);
-    next(err);
-  }
 };

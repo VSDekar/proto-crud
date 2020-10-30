@@ -4,9 +4,13 @@ import _ from 'lodash';
 import { selectTables } from './queries.js';
 pg.types.setTypeParser(20, 'text', parseInt); // To parse bigint not as strings but as number
 
-let pool = null;
+/**
+ * @type {pg.Pool}
+ */
+// @ts-ignore
+export let db = null;
 
 export const setupDb = pgOptions => {
-  pool = new Pool(pgOptions);
-  return pool;
+  db = new Pool(pgOptions);
+  return db;
 };
