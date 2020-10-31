@@ -1,4 +1,4 @@
-import { db } from './db/db.js';
+import { query } from './db/db.js';
 import {
   filterOutPrimaryKeyColumns,
   getIdFromParams,
@@ -16,9 +16,7 @@ import _ from 'lodash';
 export const handleGet = async (req, res, next, table) => {
   try {
     const sql = `Select * from ${table.tableName}`;
-    const dbResult = await db.query(sql);
-
-    const result = dbResult.rows;
+    const result = await query(sql);
 
     res.send(result);
   } catch (err) {
@@ -40,15 +38,20 @@ export const handleGetWithId = async (
   next,
   { tableName, columns },
 ) => {
-  const id = getIdFromParams(req);
-  const primaryKey = filterForPrimaryKey(columns)[0];
+  try {
+    const id = getIdFromParams(req);
+    const primaryKey = filterForPrimaryKey(columns)[0];
 
-  const sql = `Select * from ${tableName} where ${primaryKey.columnName} = $1`;
-  const dbResult = await db.query(sql, [id]);
+    const sql = `Select * from ${tableName} where ${primaryKey.columnName} = $1`;
+    const result = await query(sql, [id]);
 
-  const row = dbResult.rows[0];
+    const row = result[0];
 
-  return res.send(row);
+    return res.send(row);
+  } catch (err) {
+    console.log(err);
+    next(err);
+  }
 };
 
 export const handlePost = async (req, res, next, { tableName, columns }) => {
@@ -63,12 +66,11 @@ export const handlePost = async (req, res, next, { tableName, columns }) => {
 
     console.log(sql);
 
-    const dbResult = await db.query(sql, [
-      ...columnsWithoutPrimaryKey.map(x => req.body[x.columnName]),
+    const result = await query(sql, [
+      ...columnsWithoutPrimaryKey.map(x => req.body[_.camelCase(x.columnName)]),
     ]);
-    const rows = dbResult.rows;
 
-    res.send(rows);
+    res.send(result[0]);
   } catch (err) {
     console.error(err);
     next(err);
@@ -96,18 +98,14 @@ export const handlePut = async (req, res, next, { tableName, columns }) => {
       },
     )} where ${primaryKeyColumn.columnName} = \$${lastIndex + 1} returning *`;
 
-    console.log(sql);
-
     const paramArray = [
       ...columnsWithoutPrimaryKey.map(x => body[_.camelCase(x.columnName)]),
       body[_.camelCase(primaryKeyColumn.columnName)],
     ];
 
-    console.log(paramArray);
+    const result = await query(sql, paramArray);
 
-    const dbResult = await db.query(sql, paramArray);
-
-    const row = dbResult.rows[0];
+    const row = result[0];
 
     return res.send(row);
   } catch (err) {
@@ -130,9 +128,8 @@ export const handleDelete = async (req, res, next, { tableName, columns }) => {
 
     const sql = `Delete From ${tableName} where ${primaryKey.columnName} = $1 returning *`;
 
-    const dbResult = await db.query(sql, [id]);
-    const rows = dbResult.rows;
-    return res.send(rows);
+    const result = await query(sql, [id]);
+    return res.send(result);
   } catch (err) {
     next(err);
   }
