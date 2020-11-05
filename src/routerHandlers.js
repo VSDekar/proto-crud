@@ -54,6 +54,13 @@ export const handleGetWithId = async (
   }
 };
 
+/**
+ *
+ * @param {*} req
+ * @param {*} res
+ * @param {*} next
+ * @param {Table} table
+ */
 export const handlePost = async (req, res, next, { tableName, columns }) => {
   try {
     const columnsWithoutPrimaryKey = filterOutPrimaryKeyColumns(columns);

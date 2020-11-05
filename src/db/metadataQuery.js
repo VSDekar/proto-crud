@@ -1,4 +1,4 @@
-export const metaDataQuery = `select
+export const metadataQuery = `select
 c.table_catalog
 , c.table_schema
 , c.table_name
