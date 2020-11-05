@@ -1,6 +1,6 @@
 {
-  "name": "proto-crud",
-  "version": "1.0.0",
+  "name": "pg-express-crud",
+  "version": "1.0.1",
   "description": "",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -13,6 +13,9 @@
     "start": "cd testApplication && nodemon --watch .. src/index.js"
   },
   "author": "Remo Fischer",
+  "keywords": [
+    "express, crud, prototyping"
+  ],
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
